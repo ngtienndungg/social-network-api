@@ -1,4 +1,5 @@
 <?php
+
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -14,16 +15,38 @@ $app = AppFactory::create();
 $app->addRoutingMiddleware();
 $app->setBasePath('/social-network-api');
 
+$customErrorHandler = function (
+    ServerRequestInterface $request,
+    Throwable              $exception,
+    bool                   $displayErrorDetails,
+    bool                   $logErrors,
+    bool                   $logErrorDetails,
+    ?LoggerInterface       $logger = null
+) use ($app) {
+
+    $payload = array();
+    $payload['status'] = $exception->getCode();
+    $payload['message'] = $exception->getMessage();
+
+    $response = $app->getResponseFactory()->createResponse();
+    $response->getBody()->write(
+        json_encode($payload)
+    );
+
+    return $response->withHeader('Content-Type', 'application/json')
+        ->withStatus($exception->getCode() != 0 ? $exception->getCode() : 500);
+};
 
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
+$errorMiddleware->setDefaultErrorHandler($customErrorHandler);
 
-$app->get('/hello/{name}', function ($request, $response, $args) {
+$app->add(new BeforeMiddleware());
+// $app->add(new AfterMiddleware());
+
+$app->post('/hello/{name}', function ($request, $response, $args) {
     $name = $args['name'];
     $response->getBody()->write("Hello, $name");
     return $response;
 });
-
-$app->add(new BeforeMiddleware());
-$app->add(new AfterMiddleware());
 
 $app->run();
