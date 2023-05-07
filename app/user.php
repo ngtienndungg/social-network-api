@@ -16,18 +16,25 @@ if (isset($app)) {
             $query = $pdo->prepare("SELECT `uid` FROM `user` WHERE `uid` = :uid LIMIT 1");
             $query->bindparam(':uid', $requestData['uid']);
             $query->execute();
+            $errorData = $query->errorInfo();
+            if ($errorData) {
+                return checkError($response, $errorData);
+            }
             $count = $query->rowCount();
 
             if ($count == 1) {
                 $query = $pdo->prepare("UPDATE `user` SET `name` = :name, `email` = :email, `profileUrl`= :profileUrl,
                                             `coverUrl` = :coverUrl, `userToken` = :userToken WHERE `uid` = :uid");
-                $query->execute($requestData);
             } else {
                 $query = $pdo->prepare("INSERT INTO `user` (`uid`, `name`, `email`, `profileUrl`, `coverUrl`, `userToken`)
                                             VALUES (:uid, :name, :email, :profileUrl, :coverUrl, :userToken)");
-                $query->execute($requestData);
             }
 
+            $query->execute($requestData);
+            $errorData = $query->errorInfo();
+            if ($errorData) {
+                return checkError($response, $errorData);
+            }
             $output['status'] = 200;
             $output['message'] = "Login Success";
             $output['auth'] = $requestData;

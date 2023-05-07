@@ -43,6 +43,7 @@ $errorMiddleware->setDefaultErrorHandler($customErrorHandler);
 $app->add(new BeforeMiddleware());
 
 require_once __DIR__ .'/../app/user.php';
+require_once __DIR__ .'/../app/utils.php';
 
 $app->run();
 ?>
