@@ -17,7 +17,7 @@ if (isset($app)) {
             $query->bindparam(':uid', $requestData['uid']);
             $query->execute();
             $errorData = $query->errorInfo();
-            if ($errorData) {
+            if ($errorData[1]) {
                 return checkError($response, $errorData);
             }
             $count = $query->rowCount();
@@ -32,7 +32,7 @@ if (isset($app)) {
 
             $query->execute($requestData);
             $errorData = $query->errorInfo();
-            if ($errorData) {
+            if ($errorData[1]) {
                 return checkError($response, $errorData);
             }
             $output['status'] = 200;
