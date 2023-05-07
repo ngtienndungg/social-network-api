@@ -41,12 +41,8 @@ $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 $errorMiddleware->setDefaultErrorHandler($customErrorHandler);
 
 $app->add(new BeforeMiddleware());
-// $app->add(new AfterMiddleware());
 
-$app->post('/hello/{name}', function ($request, $response, $args) {
-    $name = $args['name'];
-    $response->getBody()->write("Hello, $name");
-    return $response;
-});
+require_once __DIR__ .'/../app/user.php';
 
 $app->run();
+?>
