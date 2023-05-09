@@ -13,6 +13,7 @@ require_once __DIR__ . '/../middleware/AfterMiddleware.php';
 $app = AppFactory::create();
 
 $app->addRoutingMiddleware();
+$app->addBodyParsingMiddleware();
 $app->setBasePath('/social-network-api');
 
 $customErrorHandler = function (
