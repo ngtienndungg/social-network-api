@@ -44,5 +44,42 @@ if (isset($app)) {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
         }
     });
+
+    $app->get('/loadprofileinfo', function($request, $response, $args) {
+        require_once __DIR__ .'/../bootstrap/dbConnection.php';
+
+        $output = array();
+        $userId = $request->getQueryParams()['userId'];
+        $state = 0;
+
+        if (isset($request->getQueryParams()['current_state'])) {
+            $state = $request->getQueryParams()['current_state'];
+        }
+        else {
+
+        }
+
+        if(isset($pdo)) {
+            $query = $pdo->prepare('SELECT * FROM `user` WHERE `uid` = :userId');
+            $query->bindParam(':userId', $userId, PDO::PARAM_STR);
+            $query->execute();
+
+            $errorData = $query->errorInfo();
+            if ($errorData[1]) {
+                return checkError($response, $errorData);
+            }
+
+            $result = $query->fetch(PDO::FETCH_ASSOC);
+
+            $result['state'] = $state;
+            $output['status'] = 200;
+            $output['message'] = "Profile data is retrieve";
+            $output['profile'] = $result;
+
+            $payload = json_encode($output);
+            $response->getBody()->write($payload);
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+    });
 }
 ?>
