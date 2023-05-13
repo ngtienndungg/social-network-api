@@ -1,9 +1,6 @@
 <?php
 
-use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Server\RequestHandlerInterface;
-use Slim\Psr7\Response;
 use Slim\Factory\AppFactory;
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -43,8 +40,8 @@ $errorMiddleware->setDefaultErrorHandler($customErrorHandler);
 
 $app->add(new BeforeMiddleware());
 
-require_once __DIR__ .'/../app/user.php';
-require_once __DIR__ .'/../app/utils.php';
-
+require_once __DIR__ . '/../app/user.php';
+require_once __DIR__ . '/../app/utils.php';
+require_once __DIR__ . '/../app/post.php';
 $app->run();
 ?>
