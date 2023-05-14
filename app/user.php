@@ -45,7 +45,7 @@ if (isset($app)) {
         }
     });
 
-    $app->get('/loadprofileinfo', function($request, $response, $args) {
+        $app->get('/loadprofileinfo', function($request, $response, $args) {
         require_once __DIR__ .'/../bootstrap/dbConnection.php';
 
         $output = array();
@@ -79,6 +79,54 @@ if (isset($app)) {
             $payload = json_encode($output);
             $response->getBody()->write($payload);
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+    });
+
+    $app->post('/uploadimage', function($request, $response, $args) {
+        include __DIR__ .'/../bootstrap/dbConnection.php';
+
+        $uid = $request->getParsedBody()['uid'];
+        $isCoverImage = $request->getParsedBody()['isCoverImage'];
+
+        if (move_uploaded_file($_FILES['file']["tmp_name"], "../uploads/" . $_FILES["file"]["name"])) {
+            $msg = "";
+            if ($isCoverImage=='true') {
+                $query = "UPDATE `user` SET `coverUrl` = :uploadUrl WHERE `uid` = :uid";
+                $msg = "Cover upload successfully";
+            }
+            else {
+                $query = "UPDATE `user` SET `profileUrl` = :uploadUrl WHERE `uid` = :uid";
+                $msg = "Avatar upload successfully";
+            }
+
+            $imageLocation = "../uploads/" . $_FILES["file"]["name"];
+            if (isset($pdo)) {
+                $query = $pdo->prepare($query);
+                $query->bindParam(':uid', $uid, PDO::PARAM_STR);
+                $query->bindParam(':uploadUrl', $imageLocation, PDO::PARAM_STR);
+                $query->execute();
+
+                $errorData = $query->errorInfo();
+                if ($errorData[1]) {
+                    return checkError($response, $errorData);
+                }
+
+                $output['status'] = 200;
+                $output['message'] = $msg;
+                $output['extra'] = $imageLocation;
+
+                $payload = json_encode($output);
+                $response->getBody()->write($payload);
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+            }
+        }
+        else {
+            $output['status'] = 500;
+            $output['message'] = "Can not upload image to server";
+
+            $payload = json_encode($output);
+            $response->getBody()->write($payload);
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     });
 }
