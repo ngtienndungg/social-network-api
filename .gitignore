@@ -1,0 +1,13 @@
+uploads/
+vendor/fig/http-message-util/
+vendor/nikic/fast-route/
+vendor/psr/container/
+vendor/psr/http-factory/
+vendor/psr/http-message/
+vendor/psr/http-server-handler/
+vendor/psr/http-server-middleware/
+vendor/psr/log/
+vendor/ralouphie/getallheaders/ 
+vendor/slim/psr7/
+vendor/slim/slim/
+vendor/symfony/polyfill-php80/
