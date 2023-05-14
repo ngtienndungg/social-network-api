@@ -11,7 +11,7 @@ $app = AppFactory::create();
 
 $app->addRoutingMiddleware();
 $app->addBodyParsingMiddleware();
-$app->setBasePath('/social-network-api');
+$app->setBasePath('/social-network-api/public');
 
 $customErrorHandler = function (
     ServerRequestInterface $request,
@@ -43,5 +43,6 @@ $app->add(new BeforeMiddleware());
 require_once __DIR__ . '/../app/user.php';
 require_once __DIR__ . '/../app/utils.php';
 require_once __DIR__ . '/../app/post.php';
+
 $app->run();
 ?>
