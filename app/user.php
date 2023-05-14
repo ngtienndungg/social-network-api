@@ -1,7 +1,7 @@
 <?php
 if (isset($app)) {
     $app->post('/login', function ($request, $response, $args) {
-        require_once __DIR__ .'/../bootstrap/dbConnection.php';
+        require_once __DIR__ . '/../bootstrap/dbConnection.php';
         $output = array();
         $requestData = array();
 
@@ -45,8 +45,8 @@ if (isset($app)) {
         }
     });
 
-        $app->get('/loadprofileinfo', function($request, $response, $args) {
-        require_once __DIR__ .'/../bootstrap/dbConnection.php';
+    $app->get('/loadprofileinfo', function ($request, $response, $args) {
+        require_once __DIR__ . '/../bootstrap/dbConnection.php';
 
         $output = array();
         $userId = $request->getQueryParams()['userId'];
@@ -54,12 +54,11 @@ if (isset($app)) {
 
         if (isset($request->getQueryParams()['current_state'])) {
             $state = $request->getQueryParams()['current_state'];
-        }
-        else {
+        } else {
 
         }
 
-        if(isset($pdo)) {
+        if (isset($pdo)) {
             $query = $pdo->prepare('SELECT * FROM `user` WHERE `uid` = :userId');
             $query->bindParam(':userId', $userId, PDO::PARAM_STR);
             $query->execute();
@@ -82,19 +81,18 @@ if (isset($app)) {
         }
     });
 
-    $app->post('/uploadimage', function($request, $response, $args) {
-        include __DIR__ .'/../bootstrap/dbConnection.php';
+    $app->post('/uploadimage', function ($request, $response, $args) {
+        include __DIR__ . '/../bootstrap/dbConnection.php';
 
         $uid = $request->getParsedBody()['uid'];
         $isCoverImage = $request->getParsedBody()['isCoverImage'];
 
         if (move_uploaded_file($_FILES['file']["tmp_name"], "../uploads/" . $_FILES["file"]["name"])) {
             $msg = "";
-            if ($isCoverImage=='true') {
+            if ($isCoverImage == 'true') {
                 $query = "UPDATE `user` SET `coverUrl` = :uploadUrl WHERE `uid` = :uid";
                 $msg = "Cover upload successfully";
-            }
-            else {
+            } else {
                 $query = "UPDATE `user` SET `profileUrl` = :uploadUrl WHERE `uid` = :uid";
                 $msg = "Avatar upload successfully";
             }
@@ -119,8 +117,7 @@ if (isset($app)) {
                 $response->getBody()->write($payload);
                 return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
             }
-        }
-        else {
+        } else {
             $output['status'] = 500;
             $output['message'] = "Can not upload image to server";
 
@@ -129,5 +126,42 @@ if (isset($app)) {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     });
+
+    $app->get('/search', function ($request, $response, $args) {
+        include __DIR__ . '/../bootstrap/dbConnection.php';
+
+        $keyword = $request->getQueryParams()['keyword'];
+
+        if (isset($pdo)) {
+            $query = $pdo->prepare("SELECT * FROM `user` WHERE `name` LIKE '$keyword%' LIMIT 10");
+            $query->execute();
+
+            $errorData = $query->errorInfo();
+            if ($errorData[1]) {
+                return checkError($response, $errorData);
+            }
+
+            $result = $query->fetchAll(PDO::FETCH_ASSOC);
+
+            $output['status'] = 200;
+            $output['message'] = "Search";
+            $output['user'] = $result;
+
+            $payload = json_encode($output);
+            $response->getBody()->write($payload);
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+    });
 }
+
+    function checkFriend($userId,$profileId){
+        include __DIR__ . '/../bootstrap/dbConnection.php';
+        if (isset($pdo)) {
+            $stmt = $pdo->prepare("SELECT * FROM `friends` WHERE `userId` = :userId AND `profileId` = :profileId");
+            $stmt->bindParam(':userId', $userId, PDO::PARAM_STR);
+            $stmt->bindParam(':profileId', $profileId, PDO::PARAM_STR);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+    }
 ?>
