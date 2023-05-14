@@ -154,6 +154,18 @@ if (isset($app)) {
     });
 }
 
+    function checkRequest($userId,$profileId){
+        include __DIR__ . '/../bootstrap/dbConnection.php';
+        if (isset($pdo)) {
+            $stmt = $pdo->prepare("SELECT * FROM `requests` WHERE `sender` = :userId AND `receiver` = :profileId 
+            OR `sender` = :profileId AND `receiver` = :userId");
+            $stmt->bindParam(':userId', $userId, PDO::PARAM_STR);
+            $stmt->bindParam(':profileId', $profileId, PDO::PARAM_STR);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        }
+    }
+
     function checkFriend($userId,$profileId){
         include __DIR__ . '/../bootstrap/dbConnection.php';
         if (isset($pdo)) {
