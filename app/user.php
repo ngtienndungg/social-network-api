@@ -48,6 +48,15 @@ if (isset($app)) {
     $app->get('/loadprofileinfo', function ($request, $response, $args) {
         require_once __DIR__ . '/../bootstrap/dbConnection.php';
 
+        /*
+         current_state
+         1 = We are friends
+         2 = we have sent friend request to that person
+         3 = We have received friend request from that person
+         4 = We are unknown
+         5 = Our own profile
+      */
+
         $output = array();
         $userId = $request->getQueryParams()['userId'];
         $state = 0;
@@ -55,7 +64,27 @@ if (isset($app)) {
         if (isset($request->getQueryParams()['current_state'])) {
             $state = $request->getQueryParams()['current_state'];
         } else {
+            $profileId = $request->getQueryParams()['profileId'];
 
+            $request = checkRequest($userId, $profileId);
+            if ($request) {
+                if ($request['sender'] == $userId) {
+                    // we have send the request
+                    $state = "2";
+                } else {
+                    $state = "3";
+                    //we have received the request
+                }
+            } else {
+                if (checkFriend($userId, $profileId)) {
+                    $state = "1";
+                    //we are friends
+                } else {
+                    $state = "4";
+                    //we are unknown to one another
+                }
+            }
+            $userId = $profileId;
         }
 
         if (isset($pdo)) {
@@ -72,13 +101,14 @@ if (isset($app)) {
 
             $result['state'] = $state;
             $output['status'] = 200;
-            $output['message'] = "Profile data is retrieve";
+            $output['message'] = "Profile Data Retrieved";
             $output['profile'] = $result;
 
             $payload = json_encode($output);
             $response->getBody()->write($payload);
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
         }
+
     });
 
     $app->post('/uploadimage', function ($request, $response, $args) {
@@ -152,9 +182,9 @@ if (isset($app)) {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
         }
     });
-}
 
-    function checkRequest($userId,$profileId){
+    function checkRequest($userId, $profileId)
+    {
         include __DIR__ . '/../bootstrap/dbConnection.php';
         if (isset($pdo)) {
             $stmt = $pdo->prepare("SELECT * FROM `requests` WHERE `sender` = :userId AND `receiver` = :profileId 
@@ -166,7 +196,8 @@ if (isset($app)) {
         }
     }
 
-    function checkFriend($userId,$profileId){
+    function checkFriend($userId, $profileId)
+    {
         include __DIR__ . '/../bootstrap/dbConnection.php';
         if (isset($pdo)) {
             $stmt = $pdo->prepare("SELECT * FROM `friends` WHERE `userId` = :userId AND `profileId` = :profileId");
@@ -176,4 +207,4 @@ if (isset($app)) {
             return $stmt->fetch(PDO::FETCH_ASSOC);
         }
     }
-?>
+}

@@ -43,6 +43,6 @@ $app->add(new BeforeMiddleware());
 require_once __DIR__ . '/../app/user.php';
 require_once __DIR__ . '/../app/utils.php';
 require_once __DIR__ . '/../app/post.php';
+require_once __DIR__ . '/../app/friend.php';
 
 $app->run();
-?>
