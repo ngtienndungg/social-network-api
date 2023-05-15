@@ -107,6 +107,57 @@ if (isset($app)) {
         }
     });
 
+    $app->get('/loadfriends',function($request,  $response,  $args){
+
+        include __DIR__ .'/../bootstrap/dbConnection.php';
+        $userId = $request->getQueryParams()['uid'];
+
+        if (isset($pdo)) {
+            $query = $pdo->prepare('
+                                    SELECT user.* FROM `user` 
+                                    Inner JOIN `requests`
+                                    ON user.uid = requests.sender
+                                    WHERE `receiver` = :userId'
+            );
+            $query->bindParam(':userId', $userId, PDO::PARAM_STR);
+
+            $query->execute();
+
+            $errorData = $query->errorInfo();
+            if($errorData[1]){
+                return checkError($response, $errorData);
+            }
+
+            $result['requests']= $query->fetchAll(PDO::FETCH_ASSOC);
+
+            $query = $pdo->prepare('
+								SELECT user.* FROM `user` 
+								Inner JOIN `friends`
+								ON user.uid = friends.profileId
+								WHERE friends.userId = :userId'
+            );
+
+            $query->bindParam(':userId', $userId, PDO::PARAM_STR);
+            $query->execute();
+
+            $errorData = $query->errorInfo();
+            if($errorData[1]){
+                return checkError($response, $errorData);
+            }
+
+            $result['friends'] = $query->fetchAll(PDO::FETCH_ASSOC);
+
+            $output['status']  = 200;
+            $output['message'] = "Friends and Requests list are fetched !";
+            $output['result'] = $result;
+
+
+            $payload = json_encode($output);
+            $response->getBody()->write($payload);
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+    });
+
     function insert($response, $table, $fields = array())
     {
         include __DIR__ . '/../bootstrap/dbConnection.php';
