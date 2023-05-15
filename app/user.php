@@ -207,4 +207,44 @@ if (isset($app)) {
             return $stmt->fetch(PDO::FETCH_ASSOC);
         }
     }
+
+    $app->get('/getnewsfeed',function($request,  $response,  $args){
+
+        include __DIR__ . '/../bootstrap/dbConnection.php';
+
+        $uid = $request->getQueryParams()['uid'];
+        $limit = $request->getQueryParams()['limit'];
+        $offset = $request->getQueryParams()['offset'];
+
+        if (isset($pdo)) {
+            $query = $pdo->prepare("
+                               SELECT 	 posts.*, user.*
+                               from 	`timeline`
+                               INNER JOIN `posts`
+                                   on timeline.postId = posts.postId
+                               INNER JOIN `user`
+                                   on  posts.postUserId = user.uid
+                               WHERE 	timeline.whoseTimeLine= :uid
+                               ORDER By timeline.statusTime DESC
+                               LIMIT $limit OFFSET $offset
+                               "
+            );
+            $query->bindParam(':uid', $uid, PDO::PARAM_STR);
+            $query->execute();
+
+            $errorData = $query->errorInfo();
+            if($errorData[1]){
+                return checkError($response, $errorData);
+            }
+            $posts= $query->fetchAll(PDO::FETCH_OBJ);
+            $output['status']  = 200;
+            $output['message'] = "Newsfeed Loaded Successfully";
+            $output['posts'] = $posts;
+
+            $payload = json_encode($output);
+            $response->getBody()->write($payload);
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+    });
+
 }
