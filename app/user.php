@@ -208,7 +208,7 @@ if (isset($app)) {
         }
     }
 
-    $app->get('/getnewsfeed',function($request,  $response,  $args){
+    $app->get('/getnewsfeed', function ($request, $response, $args) {
 
         include __DIR__ . '/../bootstrap/dbConnection.php';
 
@@ -233,11 +233,11 @@ if (isset($app)) {
             $query->execute();
 
             $errorData = $query->errorInfo();
-            if($errorData[1]){
+            if ($errorData[1]) {
                 return checkError($response, $errorData);
             }
-            $posts= $query->fetchAll(PDO::FETCH_OBJ);
-            $output['status']  = 200;
+            $posts = $query->fetchAll(PDO::FETCH_OBJ);
+            $output['status'] = 200;
             $output['message'] = "Newsfeed Loaded Successfully";
             $output['posts'] = $posts;
 
@@ -247,7 +247,7 @@ if (isset($app)) {
         }
     });
 
-    $app->get('/loadprofileposts',function($request,  $response,  $args){
+    $app->get('/loadprofileposts', function ($request, $response, $args) {
 
         include __DIR__ . '/../bootstrap/dbConnection.php';
 
@@ -259,16 +259,16 @@ if (isset($app)) {
         $current_state = $request->getQueryParams()['current_state'];
 
         if (isset($pdo)) {
-            $query =  $pdo->prepare("SELECT * from `user` WHERE `uid` = :uid LIMIT 1");
+            $query = $pdo->prepare("SELECT * from `user` WHERE `uid` = :uid LIMIT 1");
             $query->bindParam(':uid', $uid, PDO::PARAM_STR);
             $query->execute();
 
             $errorData = $query->errorInfo();
-            if($errorData[1]){
+            if ($errorData[1]) {
                 return checkError($response, $errorData);
             }
 
-            $userInfo =$query->fetch(PDO::FETCH_OBJ);
+            $userInfo = $query->fetch(PDO::FETCH_OBJ);
 
             /*
         privacy flags representation:
@@ -284,25 +284,25 @@ if (isset($app)) {
                 5 = own profile
             */
 
-            if($current_state==5){
+            if ($current_state == 5) {
                 /*
                     -> our own profile,
                     -> can view only me, friends and public  privacy level post
                 */
                 $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid ORDER By statusTime DESC";
-            }else if($current_state==4){
+            } else if ($current_state == 4) {
                 /*
                      -> unknown profile
                      -> can view public privacy level post
                  */
                 $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid AND `privacy` = 2 ORDER By statusTime DESC";
-            }else if($current_state==1){
+            } else if ($current_state == 1) {
                 $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid AND ( `privacy` = 2 OR `privacy` = 0 ) ORDER By statusTime DESC";
                 /*
                     -> friends account
                     -> can view fiends and public privacy level post
                 */
-            }else{
+            } else {
                 $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid AND `privacy` = 2 ORDER By statusTime DESC";
                 /*
                     -> relation not known
@@ -310,26 +310,26 @@ if (isset($app)) {
 
                 */
             }
-            $query .=  '  LIMIT '.$limit. ' OFFSET '.$offset;
+            $query .= '  LIMIT ' . $limit . ' OFFSET ' . $offset;
             $query = $pdo->prepare($query);
             $query->bindParam(':uid', $uid, PDO::PARAM_STR);
             $query->execute();
 
             $errorData = $query->errorInfo();
-            if($errorData[1]){
+            if ($errorData[1]) {
                 return checkError($response, $errorData);
             }
 
-            $posts= $query->fetchAll(PDO::FETCH_OBJ);
+            $posts = $query->fetchAll(PDO::FETCH_OBJ);
 
             foreach ($posts as $key => $value) {
-                $value->name         =  $userInfo->name;
-                $value->profileUrl   =  $userInfo->profileUrl;
-                $value->email        =  $userInfo->email;
-                $value->coverUrl     =  $userInfo->coverUrl;
+                $value->name = $userInfo->name;
+                $value->profileUrl = $userInfo->profileUrl;
+                $value->email = $userInfo->email;
+                $value->coverUrl = $userInfo->coverUrl;
             }
 
-            $output['status']  = 200;
+            $output['status'] = 200;
             $output['message'] = "Profile post Loaded Successfully";
             $output['posts'] = $posts;
 
@@ -339,5 +339,195 @@ if (isset($app)) {
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
         }
     });
+
+    $app->post('/performreaction', function ($request, $response, $args) {
+
+
+        include __DIR__ . '/../bootstrap/dbConnection.php';
+
+        $userId = $request->getParsedBody()['userId'];
+        $postId = $request->getParsedBody()['postId'];
+        $postOwnerId = $request->getParsedBody()['postOwnerId'];
+        $previousReactionType = $request->getParsedBody()['previousReactionType'];
+        $newReactionType = $request->getParsedBody()['newReactionType'];
+        $message = "Operation Successful";
+
+        $oldReactionColumn = checkColumnName($previousReactionType);
+        $newReactionColumn = checkColumnName($newReactionType);
+
+        if ($newReactionType == "default") {
+
+            if ($previousReactionType == "default") {
+                $message = "No Operation Performed";
+                $reactions = getReactionCount($postId);
+                $reactions->reactionType = 'default';
+
+                $output['status'] = 200;
+                $output['message'] = $message;
+                $output['reaction'] = $reactions;
+
+                $payload = json_encode($output, JSON_NUMERIC_CHECK);
+                $response->getBody()->write($payload);
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+            }
+
+            if (isset($pdo)) {
+                $stmt = $pdo->prepare(" UPDATE `posts` 
+                                    SET " . $oldReactionColumn . " = " . $oldReactionColumn . " -1 " . " 
+                                    WHERE `postId` = :postId");
+                $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+                $stmt->execute();
+
+                $errorData = $stmt->errorInfo();
+                if ($errorData[1]) {
+                    return checkError($response, $errorData);
+                }
+
+                // remove old reaction from reaction table
+                $stmt = $pdo->prepare("DELETE FROM `reactions` WHERE
+                                `reactionBy` = :userId AND
+                                `postOn` = :postId 
+                             ");
+
+                $stmt->bindParam(":userId", $userId, PDO::PARAM_STR);
+                $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+                $stmt->execute();
+
+                $errorData = $stmt->errorInfo();
+                if ($errorData[1]) {
+                    return checkError($response, $errorData);
+                }
+                $message = "Reaction Undo Successfully";
+            }
+
+
+        } else {
+            // previous = care, newReaction = wow
+            if ($previousReactionType != "default") {
+                // decrease counter of old reaction
+                if (isset($pdo)) {
+                    $stmt = $pdo->prepare(" UPDATE `posts` 
+            SET " . $oldReactionColumn . " = " . $oldReactionColumn . " -1 " . " 
+            WHERE `postId` = :postId");
+                    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+                    $stmt->execute();
+
+                    $errorData = $stmt->errorInfo();
+                    if ($errorData[1]) {
+                        return checkError($response, $errorData);
+                    }
+
+                    // remove old reaction from reaction table
+                    $stmt = $pdo->prepare("DELETE FROM `reactions` WHERE
+        `reactionBy` = :userId AND
+        `postOn` = :postId 
+        ");
+
+                    $stmt->bindParam(":userId", $userId, PDO::PARAM_STR);
+                    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+                    $stmt->execute();
+
+                    $errorData = $stmt->errorInfo();
+                    if ($errorData[1]) {
+                        return checkError($response, $errorData);
+                    }
+                }
+
+
+                // increase counter of new reaction
+                $stmt = $pdo->prepare(" UPDATE `posts` 
+                            SET " . $newReactionColumn . " = " . $newReactionColumn . " +1 " . " 
+                            WHERE `postId` = :postId");
+
+
+                $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+                $stmt->execute();
+
+                $errorData = $stmt->errorInfo();
+                if ($errorData[1]) {
+                    return checkError($response, $errorData);
+                }
+
+                // insert new reaction to reactions table
+                $stmt = $pdo->prepare("INSERT INTO `reactions` 
+                                (`reactionBy`, `postOn`, `reactionType` ) 
+                                VALUES (:reactionBy, :postOn, :reactionType); ");
+
+
+                $stmt->bindParam(':reactionBy', $userId, PDO::PARAM_STR);
+                $stmt->bindParam(':postOn', $postId, PDO::PARAM_INT);
+                $stmt->bindParam(':reactionType', $newReactionType, PDO::PARAM_STR);
+
+                $stmt->execute();
+
+                $errorData = $stmt->errorInfo();
+                if ($errorData[1]) {
+                    return checkError($response, $errorData);
+                }
+                $message = "Reaction changed from " . $previousReactionType . " to " . $newReactionType;
+            }
+            // send back the updated reaction counts
+            $reactions = getReactionCount($postId);
+            $reactions->reactionType = $newReactionType;
+
+            $output['status'] = 200;
+            $output['message'] = $message;
+            $output['reaction'] = $reactions;
+
+            $payload = json_encode($output, JSON_NUMERIC_CHECK);
+            $response->getBody()->write($payload);
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+    });
+    function checkColumnName($reactionType)
+    {
+        $columnName = "likeCount";
+        if ($reactionType == "love") {
+
+            $columnName = "loveCount";
+
+        } else if ($reactionType == "care") {
+
+            $columnName = "careCount";
+
+        } else if ($reactionType == "haha") {
+
+            $columnName = "hahaCount";
+
+        } else if ($reactionType == "wow") {
+
+            $columnName = "wowCount";
+
+        } else if ($reactionType == "sad") {
+
+            $columnName = "sadCount";
+
+        } else if ($reactionType == "angry") {
+
+            $columnName = "angryCount";
+
+        }
+        return $columnName;
+    }
+
+    function getReactionCount($postId){
+
+        include __DIR__ . '/../bootstrap/dbConnection.php';
+
+        if (isset($pdo)) {
+            $stmt =  $pdo->prepare("  SELECT 
+                                 `likeCount` , `loveCount`, `careCount`,
+                                 `hahaCount`, `wowCount`, `sadCount`, `angryCount`
+                                  from `posts` WHERE `postId` = :postId LIMIT 1");
+            $stmt->bindParam(':postId', $postId, PDO::PARAM_STR);
+            $stmt->execute();
+
+            $errorData = $stmt->errorInfo();
+
+            $userInfo =$stmt->fetch(PDO::FETCH_OBJ);
+            return $userInfo;
+        }
+    }
 
 }
