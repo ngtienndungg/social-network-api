@@ -247,7 +247,7 @@ if (isset($app)) {
         }
     });
 
-    $app->get('/loadprofileposts', function ($request, $response, $args) {
+    $app->get('/loadprofileposts',function($request,  $response,  $args){
 
         include __DIR__ . '/../bootstrap/dbConnection.php';
 
@@ -259,50 +259,75 @@ if (isset($app)) {
         $current_state = $request->getQueryParams()['current_state'];
 
         if (isset($pdo)) {
-            $query = $pdo->prepare("SELECT * from `user` WHERE `uid` = :uid LIMIT 1");
+            $query =  $pdo->prepare("SELECT * from `user` WHERE `uid` = :uid LIMIT 1");
             $query->bindParam(':uid', $uid, PDO::PARAM_STR);
             $query->execute();
 
             $errorData = $query->errorInfo();
-            if ($errorData[1]) {
+            if($errorData[1]){
                 return checkError($response, $errorData);
             }
 
-            $userInfo = $query->fetch(PDO::FETCH_OBJ);
+            $userInfo =$query->fetch(PDO::FETCH_OBJ);
 
             /*
-        privacy flags representation:
-            0 - > Friends privacy level
-            1 - > Only Me privacy level
-            2 - > Public privacy level
 
-        */
-            /*
-                Relations between two accounts:
-                1 =  two people are friends
-                4 = people are unknown
-                5 = own profile
+            privacy flags representation
+
+                0 - > Friends privacy level
+                1 - > Only Me privacy level
+                2 - > Public privacy level
+
             */
 
-            if ($current_state == 5) {
+
+            /*
+                Relations between two accounts
+
+                1 =  two people are friends
+                4 = people are unkown
+                5 = own profile
+
+
+            */
+
+            if($current_state==5){
+
                 /*
+
                     -> our own profile,
                     -> can view only me, friends and public  privacy level post
+
                 */
+
+
                 $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid ORDER By statusTime DESC";
-            } else if ($current_state == 4) {
+
+
+
+            }else if($current_state==4){
+
                 /*
+
                      -> unknown profile
                      -> can view public privacy level post
+
                  */
+
                 $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid AND `privacy` = 2 ORDER By statusTime DESC";
-            } else if ($current_state == 1) {
+
+
+            }else if($current_state==1){
+
                 $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid AND ( `privacy` = 2 OR `privacy` = 0 ) ORDER By statusTime DESC";
+
                 /*
+
                     -> friends account
                     -> can view fiends and public privacy level post
+
                 */
-            } else {
+            }else{
                 $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid AND `privacy` = 2 ORDER By statusTime DESC";
                 /*
                     -> relation not known
@@ -310,34 +335,43 @@ if (isset($app)) {
 
                 */
             }
-            $query .= '  LIMIT ' . $limit . ' OFFSET ' . $offset;
+
+            $query .=  '  LIMIT '.$limit. ' OFFSET '.$offset;
             $query = $pdo->prepare($query);
             $query->bindParam(':uid', $uid, PDO::PARAM_STR);
             $query->execute();
 
             $errorData = $query->errorInfo();
-            if ($errorData[1]) {
+            if($errorData[1]){
                 return checkError($response, $errorData);
             }
 
-            $posts = $query->fetchAll(PDO::FETCH_OBJ);
+            $posts= $query->fetchAll(PDO::FETCH_OBJ);
 
             foreach ($posts as $key => $value) {
-                $value->name = $userInfo->name;
-                $value->profileUrl = $userInfo->profileUrl;
-                $value->email = $userInfo->email;
-                $value->coverUrl = $userInfo->coverUrl;
+                $value->name         =  $userInfo->name;
+                $value->profileUrl   =  $userInfo->profileUrl;
+                $value->email        =  $userInfo->email;
+                $value->coverUrl     =  $userInfo->coverUrl;
+                //for reaction feature
+                $reactionCheck = checkOurReact($uid,  $value->postId);
+                if($reactionCheck){
+                    $value->reactionType=$reactionCheck->reactionType;
+                }else{
+                    $value->reactionType="default";
+                }
             }
 
-            $output['status'] = 200;
+            $output['status']  = 200;
             $output['message'] = "Profile post Loaded Successfully";
             $output['posts'] = $posts;
 
 
-            $payload = json_encode($output);
+            $payload = json_encode($output,JSON_NUMERIC_CHECK);
             $response->getBody()->write($payload);
             return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
         }
+
     });
 
     $app->post('/performreaction', function ($request, $response, $args) {
@@ -529,5 +563,14 @@ if (isset($app)) {
             return $userInfo;
         }
     }
-
+    function checkOurReact($userId,$postId){
+        include __DIR__ . '/../bootstrap/dbConnection.php';
+        if (isset($pdo)) {
+            $stmt = $pdo->prepare("SELECT * FROM `reactions` WHERE `reactionBy` = :userId AND `postOn` = :postId");
+            $stmt->bindParam(":userId", $userId, PDO::PARAM_STR);
+            $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_OBJ);
+        }
+    }
 }
