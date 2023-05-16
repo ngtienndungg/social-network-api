@@ -247,4 +247,97 @@ if (isset($app)) {
         }
     });
 
+    $app->get('/loadprofileposts',function($request,  $response,  $args){
+
+        include __DIR__ . '/../bootstrap/dbConnection.php';
+
+        $output = array();
+        $uid = $request->getQueryParams()['uid'];
+        $limit = $request->getQueryParams()['limit'];
+        $offset = $request->getQueryParams()['offset'];
+
+        $current_state = $request->getQueryParams()['current_state'];
+
+        if (isset($pdo)) {
+            $query =  $pdo->prepare("SELECT * from `user` WHERE `uid` = :uid LIMIT 1");
+            $query->bindParam(':uid', $uid, PDO::PARAM_STR);
+            $query->execute();
+
+            $errorData = $query->errorInfo();
+            if($errorData[1]){
+                return checkError($response, $errorData);
+            }
+
+            $userInfo =$query->fetch(PDO::FETCH_OBJ);
+
+            /*
+        privacy flags representation:
+            0 - > Friends privacy level
+            1 - > Only Me privacy level
+            2 - > Public privacy level
+
+        */
+            /*
+                Relations between two accounts:
+                1 =  two people are friends
+                4 = people are unknown
+                5 = own profile
+            */
+
+            if($current_state==5){
+                /*
+                    -> our own profile,
+                    -> can view only me, friends and public  privacy level post
+                */
+                $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid ORDER By statusTime DESC";
+            }else if($current_state==4){
+                /*
+                     -> unknown profile
+                     -> can view public privacy level post
+                 */
+                $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid AND `privacy` = 2 ORDER By statusTime DESC";
+            }else if($current_state==1){
+                $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid AND ( `privacy` = 2 OR `privacy` = 0 ) ORDER By statusTime DESC";
+                /*
+                    -> friends account
+                    -> can view fiends and public privacy level post
+                */
+            }else{
+                $query = " SELECT * FROM `posts` WHERE `postUserId` = :uid AND `privacy` = 2 ORDER By statusTime DESC";
+                /*
+                    -> relation not known
+                    -> can view public privacy level post
+
+                */
+            }
+            $query .=  '  LIMIT '.$limit. ' OFFSET '.$offset;
+            $query = $pdo->prepare($query);
+            $query->bindParam(':uid', $uid, PDO::PARAM_STR);
+            $query->execute();
+
+            $errorData = $query->errorInfo();
+            if($errorData[1]){
+                return checkError($response, $errorData);
+            }
+
+            $posts= $query->fetchAll(PDO::FETCH_OBJ);
+
+            foreach ($posts as $key => $value) {
+                $value->name         =  $userInfo->name;
+                $value->profileUrl   =  $userInfo->profileUrl;
+                $value->email        =  $userInfo->email;
+                $value->coverUrl     =  $userInfo->coverUrl;
+            }
+
+            $output['status']  = 200;
+            $output['message'] = "Profile post Loaded Successfully";
+            $output['posts'] = $posts;
+
+
+            $payload = json_encode($output);
+            $response->getBody()->write($payload);
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+        }
+    });
+
 }
