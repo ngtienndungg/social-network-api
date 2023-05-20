@@ -413,10 +413,41 @@ if (isset($app)) {
 
             }
             // decrease counter of old reaction
-            if (isset($pdo)) {
+            $stmt = $pdo->prepare(" UPDATE `posts` 
+                                SET ". $oldReactionColumn ." = " . $oldReactionColumn ." -1 "." 
+                                WHERE `postId` = :postId");
+
+            $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $errorData = $stmt->errorInfo();
+            if($errorData[1]){
+                return checkError($response, $errorData);
+            }
+
+            // remove old reaction from reaction table
+            $stmt = $pdo->prepare( "DELETE FROM `reactions` WHERE
+                                `reactionBy` = :userId AND
+                                `postOn` = :postId 
+                             ");
+
+            $stmt->bindParam(":userId", $userId, PDO::PARAM_STR);
+            $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
+            $stmt->execute();
+
+            $errorData = $stmt->errorInfo();
+            if($errorData[1]){
+                return checkError($response, $errorData);
+            }
+            $message = "Reaction Undo Successfull";
+        }else{
+            // previous = care, newReaction = wow
+            if($previousReactionType != "default"){
+                // decrease counter of old reaction
                 $stmt = $pdo->prepare(" UPDATE `posts` 
-                                    SET ". $oldReactionColumn ." = " . $oldReactionColumn ." -1 "." 
-                                    WHERE `postId` = :postId");
+        SET ". $oldReactionColumn ." = " . $oldReactionColumn ." -1 "." 
+        WHERE `postId` = :postId");
+
                 $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
                 $stmt->execute();
 
@@ -427,9 +458,9 @@ if (isset($app)) {
 
                 // remove old reaction from reaction table
                 $stmt = $pdo->prepare( "DELETE FROM `reactions` WHERE
-                                `reactionBy` = :userId AND
-                                `postOn` = :postId 
-                             ");
+        `reactionBy` = :userId AND
+        `postOn` = :postId 
+        ");
 
                 $stmt->bindParam(":userId", $userId, PDO::PARAM_STR);
                 $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
@@ -438,39 +469,6 @@ if (isset($app)) {
                 $errorData = $stmt->errorInfo();
                 if($errorData[1]){
                     return checkError($response, $errorData);
-                }
-                $message = "Reaction Undo Successfull";
-            }
-        }else{
-            // previous = care, newReaction = wow
-            if($previousReactionType != "default"){
-                // decrease counter of old reaction
-                if (isset($pdo)) {
-                    $stmt = $pdo->prepare(" UPDATE `posts` 
-            SET ". $oldReactionColumn ." = " . $oldReactionColumn ." -1 "." 
-            WHERE `postId` = :postId");
-                    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
-                    $stmt->execute();
-
-                    $errorData = $stmt->errorInfo();
-                    if($errorData[1]){
-                        return checkError($response, $errorData);
-                    }
-
-                    // remove old reaction from reaction table
-                    $stmt = $pdo->prepare( "DELETE FROM `reactions` WHERE
-        `reactionBy` = :userId AND
-        `postOn` = :postId 
-        ");
-
-                    $stmt->bindParam(":userId", $userId, PDO::PARAM_STR);
-                    $stmt->bindParam(":postId", $postId, PDO::PARAM_INT);
-                    $stmt->execute();
-
-                    $errorData = $stmt->errorInfo();
-                    if($errorData[1]){
-                        return checkError($response, $errorData);
-                    }
                 }
             }
 
@@ -519,7 +517,10 @@ if (isset($app)) {
         $payload = json_encode($output,JSON_NUMERIC_CHECK);
         $response->getBody()->write($payload);
         return $response->withHeader('Content-Type', 'application/json')->withStatus(200);
+
+
     });
+
     function checkColumnName($reactionType)
     {
         $columnName = "likeCount";
